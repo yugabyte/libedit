@@ -801,7 +801,7 @@ history_load(TYPE(History) *h, const char *fname)
 	i = 0;
 	do {
 		/*
-		 * The history file may or may not have the cookie on the first line.
+		 * YB: The history file may or may not have the cookie on the first line.
 		 * If the first line is the cookie, then start reading the history
 		 * from the second line. Otherwise, start reading from the first line.
 		 */
