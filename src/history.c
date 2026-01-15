@@ -779,6 +779,7 @@ history_load(TYPE(History) *h, const char *fname)
 	size_t max_size;
 	char *ptr;
 	int i = -1;
+	int first_line = 1;
 	TYPE(HistEvent) ev;
 	Char *decode_result;
 #ifndef NARROWCHAR
@@ -793,13 +794,22 @@ history_load(TYPE(History) *h, const char *fname)
 	if ((sz = getline(&line, &llen, fp)) == -1)
 		goto done;
 
-	if (strncmp(line, hist_cookie, (size_t)sz) != 0)
-		goto done;
-
 	ptr = h_malloc((max_size = 1024) * sizeof(*ptr));
 	if (ptr == NULL)
 		goto done;
-	for (i = 0; (sz = getline(&line, &llen, fp)) != -1; i++) {
+
+	i = 0;
+	do {
+		/*
+		 * YB: The history file may or may not have the cookie on the first line.
+		 * If the first line is the cookie, then start reading the history
+		 * from the second line. Otherwise, start reading from the first line.
+		 */
+		if (first_line && strncmp(line, hist_cookie, (size_t)sz) == 0) {
+			first_line = 0;
+			continue;
+		}
+		first_line = 0;
 		if (sz > 0 && line[sz - 1] == '\n')
 			line[--sz] = '\0';
 		if (max_size < (size_t)sz) {
@@ -814,13 +824,16 @@ history_load(TYPE(History) *h, const char *fname)
 		}
 		(void) strunvis(ptr, line);
 		decode_result = ct_decode_string(ptr, &conv);
-		if (decode_result == NULL)
+		if (decode_result == NULL) {
+			i++;
 			continue;
+		}
 		if (HENTER(h, &ev, decode_result) == -1) {
 			i = -1;
 			goto oomem;
 		}
-	}
+		i++;
+	} while ((sz = getline(&line, &llen, fp)) != -1);
 oomem:
 	h_free(ptr);
 done:
